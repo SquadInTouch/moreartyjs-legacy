@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: History.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: History.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>var Imm = require('immutable');
+var Binding = require('./Binding');
+
+var getHistoryBinding, initHistory, clearHistory, destroyHistory, listenForChanges, revertToStep, revert;
+
+getHistoryBinding = function (binding) {
+  return binding.meta('history');
+};
+
+initHistory = function (historyBinding) {
+  historyBinding.set(Imm.fromJS({ listenerId: null, undo: [], redo: [] }));
+};
+
+clearHistory = function (historyBinding) {
+  var listenerId = historyBinding.get('listenerId');
+  historyBinding.withDisabledListener(listenerId, function () {
+    historyBinding.atomically()
+      .set('undo', Imm.List.of())
+      .set('redo', Imm.List.of())
+      .commit();
+  });
+};
+
+destroyHistory = function (binding, notify) {
+  var historyBinding = getHistoryBinding(binding);
+  var listenerId = historyBinding.get('listenerId');
+  binding.removeListener(listenerId);
+  historyBinding.atomically().set(null).commit({ notify: notify });
+};
+
+listenForChanges = function (binding, historyBinding) {
+  var listenerId = binding.addListener([], function (changes) {
+    if (changes.isValueChanged()) {
+      historyBinding.atomically().update(function (history) {
+        var path = changes.getPath();
+        var previousValue = changes.getPreviousValue(), newValue = binding.get();
+        return history
+          .update('undo', function (undo) {
+            var pathAsArray = Binding.asArrayPath(path);
+            return undo &amp;&amp; undo.unshift(Imm.Map({
+              newValue: pathAsArray.length ? newValue.getIn(pathAsArray) : newValue,
+              oldValue: pathAsArray.length ? previousValue &amp;&amp; previousValue.getIn(pathAsArray) : previousValue,
+              path: path
+            }));
+          })
+          .set('redo', Imm.List.of());
+      }).commit({ notify: false });
+    }
+  });
+
+  historyBinding.atomically().set('listenerId', listenerId).commit({ notify: false });
+};
+
+revertToStep = function (path, value, listenerId, binding) {
+  binding.withDisabledListener(listenerId, function () {
+    binding.set(path, value);
+  });
+};
+
+revert = function (binding, fromBinding, toBinding, listenerId, valueProperty) {
+  var from = fromBinding.get();
+  if (!from.isEmpty()) {
+    var step = from.get(0);
+
+    fromBinding.atomically()
+      .remove(0)
+      .update(toBinding, function (to) {
+        return to.unshift(step);
+      })
+      .commit({ notify: false });
+
+    revertToStep(step.get('path'), step.get(valueProperty), listenerId, binding);
+    return true;
+  } else {
+    return false;
+  }
+};
+
+
+/**
+ * @name History
+ * @namespace
+ * @classdesc Undo/redo history handling.
+ */
+var History = {
+
+  /** Init history.
+   * @param {Binding} binding binding
+   * @memberOf History */
+  init: function (binding) {
+    var historyBinding = getHistoryBinding(binding);
+    initHistory(historyBinding);
+    listenForChanges(binding, historyBinding);
+  },
+
+  /** Clear history.
+   * @param {Binding} binding binding
+   * @memberOf History */
+  clear: function (binding) {
+    var historyBinding = getHistoryBinding(binding);
+    clearHistory(historyBinding);
+  },
+
+  /** Clear history and shutdown listener.
+   * @param {Binding} binding history binding
+   * @param {Object} [options] options object
+   * @param {Boolean} [options.notify=true] should listeners be notified
+   * @memberOf History */
+  destroy: function (binding, options) {
+    var effectiveOptions = options || {};
+    destroyHistory(binding, effectiveOptions.notify);
+  },
+
+  /** Check if history has undo information.
+   * @param {Binding} binding binding
+   * @returns {Boolean}
+   * @memberOf History */
+  hasUndo: function (binding) {
+    var historyBinding = getHistoryBinding(binding);
+    var undo = historyBinding.get('undo');
+    return !!undo &amp;&amp; !undo.isEmpty();
+  },
+
+  /** Check if history has redo information.
+   * @param {Binding} binding binding
+   * @returns {Boolean}
+   * @memberOf History */
+  hasRedo: function (binding) {
+    var historyBinding = getHistoryBinding(binding);
+    var redo = historyBinding.get('redo');
+    return !!redo &amp;&amp; !redo.isEmpty();
+  },
+
+  /** Revert to previous state.
+   * @param {Binding} binding binding
+   * @returns {Boolean} true, if binding has undo information
+   * @memberOf History */
+  undo: function (binding) {
+    var historyBinding = getHistoryBinding(binding);
+    var listenerId = historyBinding.get('listenerId');
+    var undoBinding = historyBinding.sub('undo');
+    var redoBinding = historyBinding.sub('redo');
+    return revert(binding, undoBinding, redoBinding, listenerId, 'oldValue');
+  },
+
+  /** Revert to next state.
+   * @param {Binding} binding binding
+   * @returns {Boolean} true, if binding has redo information
+   * @memberOf History */
+  redo: function (binding) {
+    var historyBinding = getHistoryBinding(binding);
+    var listenerId = historyBinding.get('listenerId');
+    var undoBinding = historyBinding.sub('undo');
+    var redoBinding = historyBinding.sub('redo');
+    return revert(binding, redoBinding, undoBinding, listenerId, 'newValue');
+  }
+
+};
+
+module.exports = History;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Binding.html">Binding</a></li><li><a href="ChangesDescriptor.html">ChangesDescriptor</a></li><li><a href="Context.html">Context</a></li><li><a href="TransactionContext.html">TransactionContext</a></li></ul><h3>Namespaces</h3><ul><li><a href="Callback.html">Callback</a></li><li><a href="DOM.html">DOM</a></li><li><a href="History.html">History</a></li><li><a href="Morearty.html">Morearty</a></li><li><a href="Morearty.Mixin.html">Mixin</a></li><li><a href="Util.html">Util</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-beta1</a> on Mon Mar 16 2015 16:43:31 GMT+0300 (MSK)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

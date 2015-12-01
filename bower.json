@@ -1,0 +1,17 @@
+{
+  "name": "morearty",
+  "version": "0.7.4",
+  "authors": [
+    "Alexander Semenov"
+  ],
+  "description": "Better state management for React in pure JavaScript.",
+  "main": "dist/morearty.js",
+  "keywords": [
+    "moreartyjs",
+    "morearty",
+    "react",
+    "immutable",
+    "persistent"
+  ],
+  "license": "Apache-2.0"
+}
