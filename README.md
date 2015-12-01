@@ -1,6 +1,11 @@
 [npm-url]: https://npmjs.org/package/morearty
 [npm-image]: http://img.shields.io/npm/v/morearty.svg?style=flat
 
+# IMPORTANT
+
+This is state of Morearty repo on 0.7.4 version, patched someday by KindWizzard. 
+Difference is unknown, so for stability reason it is stored here for the moment when project will move to upstream Morearty version.
+
 # Morearty.js
 [![NPM version][npm-image]][npm-url] [![Build Status](https://travis-ci.org/moreartyjs/moreartyjs.svg?branch=master)](https://travis-ci.org/moreartyjs/moreartyjs) [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/moreartyjs/moreartyjs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![devDependency Status](https://david-dm.org/moreartyjs/moreartyjs/dev-status.svg)](https://david-dm.org/moreartyjs/moreartyjs#info=devDependencies)
